@@ -2,6 +2,6 @@
 /P2python/*
 /trainFiles/*
 readme.pdf
-/.gitignore
+.gitignore
 .git/
 .DS_Store/

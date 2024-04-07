@@ -1,4 +1,5 @@
-/__MACOSX
-/P2python
-/trainFiles
+/__MACOSX/*
+/P2python/*
+/trainFiles/*
 readme.pdf
+.gitignore

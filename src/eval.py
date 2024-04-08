@@ -42,11 +42,8 @@ NDCG: DCG / IDCG
 """
 
 
-def get_rel_ground(qrelsFile):
-    all_qr = {}
-    with open(qrelsFile, "r", encoding="utf8") as qrel, open(
-        "qrel_output", "w", encoding="utf8"
-    ) as outfile:
+"""    all_qr = {}
+    with open(qrelsFile, "r", encoding="utf8") as qrel:
         first_line = qrel.readline().split()
         prev_qr = first_line[0]
         curr_ground = {}
@@ -55,44 +52,195 @@ def get_rel_ground(qrelsFile):
             curr_line = line.split()
             if curr_line[0] != prev_qr:
                 all_qr[prev_qr] = curr_ground
+                curr_ground = {}
+                curr_ground[curr_line[2]] = int(curr_line[3])
                 prev_qr = curr_line[0]
-                return all_qr
             else:
                 curr_ground[curr_line[2]] = int(curr_line[3])
+            all_qr[prev_qr] = curr_ground
+    return all_qr"""
+
+
+def get_rel_ground(qrelsFile):
+    all_qr = {}
+    cnt = 0
+    curr_ground = {}
+    curr_query = "0"
+    with open(qrelsFile, "r", encoding="utf8") as qrel:
+        for line in qrel:
+            curr_line = line.split()
+            query = curr_line[0]
+            docid = curr_line[2]
+            rel_level = int(curr_line[3])
+            if cnt == 0:
+                curr_query = query
+            if query != curr_query:
+                all_qr[query] = curr_ground
+                curr_ground = {}
+                curr_query = query
+            else:
+                curr_ground[docid] = rel_level
+            all_qr[curr_query] = curr_ground
+            cnt += 1
     return all_qr
 
 
 def get_rel_real(trecrunFile, rel_ground):
+    all_qr = {}
+    curr_query = "0"
+    cnt = 0
     rel_real = []
     with open(trecrunFile, "r", encoding="utf8") as trecrun:
         for line in trecrun:
             curr_line = line.split()
             query = curr_line[0]
+            if cnt == 0:
+                curr_query = query
             docid = curr_line[2]
             rel_ground_qr = rel_ground[query]
-            rel_real.append((docid, rel_ground_qr[docid]))
-    return rel_real
+            if query != curr_query:
+                all_qr[curr_query] = rel_real
+                rel_real = []
+                curr_query = query
+            if docid not in rel_ground_qr:
+                rel_real.append((docid, 0))
+            else:
+                rel_real.append((docid, rel_ground_qr[docid]))
+            all_qr[curr_query] = rel_real
+            cnt += 1
+    return all_qr
 
 
-rel_ground = get_rel_ground(
-    "C:\\Users\\lemin\\P2python\\trainFiles\\msmarco.qrels"
+def get_rel_ideal(rel_ground):
+    all_qr = {}
+    for qr, rel_rank in rel_ground.items():
+        all_qr[qr] = sorted(rel_rank.items(), key=lambda x: x[1], reverse=True)
+    return all_qr
+
+
+# rel_ground_glob = get_rel_ground(
+#     "C:\\Users\\lemin\\P2python\\trainFiles\\msmarco.qrels"
+# )
+
+# rel_real_glob = get_rel_real(
+#     "C:\\Users\\lemin\\P2python\\trecrun-smallbm25.txt",
+#     rel_ground_glob,
+# )
+# rel_ideal_glob = get_rel_ideal(rel_ground=rel_ground_glob)
+
+# print(rel_ideal_glob)
+
+
+def test(filename):
+    res = []
+    cnt = 0
+    with open(filename, "r", encoding="utf8") as f:
+        for line in f:
+            curr_line = line.split()
+            if cnt != 0 and int(curr_line[1]) > 0:
+                res.append(curr_line[0])
+            cnt += 1
+    return res
+
+
+def get_numRel(rel_ground):
+    all_qr = {}
+    for qr, rel_levels in rel_ground.items():
+        cnt = 0
+        for docid, rel_level in rel_levels:
+            if rel_level > 0:
+                cnt += 1
+    all_qr[qr] = cnt
+    return all_qr
+
+
+def get_relFound(rel_real):
+    all_qr = {}
+    for qr, docid_rels in rel_real:
+        cnt = 0
+        for docid_rel in docid_rels:
+            if docid_rel[1] > 0:
+                cnt += 1
+        all_qr[qr] = cnt
+    return all_qr
+
+
+def test_trec(filename, rel_items):
+    with open(
+        "C:\\Users\\lemin\\P2python\\{file}".format(file=filename),
+        "w",
+        encoding="utf8",
+    ) as outFile:
+        for qr, rank in rel_items.items():
+            outFile.write("{query} \n".format(query=qr))
+            for docid, rel in rank:
+                rel_w = str(rel)
+                outFile.write(
+                    "{docid} {rel_w} \n".format(docid=docid, rel_w=rel_w)
+                )
+
+
+def get_ndcg20(trecrunFile, qrelsFile):
+    rel_ground = get_rel_ground(qrelsFile)
+    rel_real = get_rel_real(trecrunFile, rel_ground)
+    # test_trec("relreal-test-smallbm25.txt", rel_real)
+    rel_ideal = get_rel_ideal(rel_ground)
+    # test_trec("relideal-test-smallbm25.txt", rel_ideal)
+    # dcg_all = {}
+    # idcg_all = {}
+    ndcg_all = {}
+    for qr, rank in rel_real.items():
+        dcg = rank[0][1]
+        idcg = rel_ideal[qr][0][1]
+        for i in range(1, 20):
+            dcg += rank[i][1] / math.log2(i + 1)
+            idcg += rel_ideal[qr][i][1] / math.log2(i + 1)
+        # dcg_all[qr] = dcg
+        # idcg_all[qr] = idcg
+        ndcg_all[qr] = dcg / idcg
+    return ndcg_all
+
+
+ndcg20 = get_ndcg20(
+    "C:\\Users\\lemin\\P2python\\trainFiles\\msmarcosmall-bm25.trecrun",
+    "C:\\Users\\lemin\\P2python\\trainFiles\\msmarco.qrels",
 )
-print(
-    get_rel_real(
-        "C:\\Users\\lemin\\P2python\\trainFiles\\msmarcofull-bm25.trecrun",
-        rel_ground,
-    )
-)
+# print(ndcg20)
 
 
 # ndcg = dcg / idcg
 # need qrel to check relevance level, get all docid in trecrun, get their relevance level, sort
 
 
-class Qr:
-    def __init__(self, query, ground_rel_docs, trecrun_file) -> None:
+"""class Qr:
+    def __init__(self, query, ground_rels, real_rels) -> None:
         self.query = query
-        self.ground_rel_docs = ground_rel_docs
+        self.ground_rels = ground_rels
+        self.real_rels = real_rels
+    def get_rel_ideal(self):
+        all_qr = {}
+        for qr, rel_rank in self.ground_rels.items():
+            all_qr[qr] = sorted(rel_rank.items(), key=lambda x: x[1], reverse=True)
+        return all_qr
+    def get_ndcg20(trecrunFile, qrelsFile):
+        # rel_ground = get_rel_ground(qrelsFile)
+        # rel_real = get_rel_real(trecrunFile, rel_ground)
+        # # test_trec("relreal-test-smallbm25.txt", rel_real)
+        # rel_ideal = get_rel_ideal(rel_ground)
+        # # test_trec("relideal-test-smallbm25.txt", rel_ideal)
+        # # dcg_all = {}
+        # # idcg_all = {}
+        ndcg_all = {}
+        for qr, rank in rel_real.items():
+            dcg = rank[0][1]
+            idcg = rel_ideal[qr][0][1]
+            for i in range(1, 20):
+                dcg += rank[i][1] / math.log2(i + 1)
+                idcg += rel_ideal[qr][i][1] / math.log2(i + 1)
+            # dcg_all[qr] = dcg
+            # idcg_all[qr] = idcg
+            ndcg_all[qr] = dcg / idcg
+        return ndcg_all"""
 
 
 def eval(trecrunFile, qrelsFile, outputFile):

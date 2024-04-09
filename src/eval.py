@@ -110,9 +110,11 @@ def get_rel_ground(qrelsFile):
                 curr_ground = {}
                 curr_query = query
             else:
+                if docid in curr_ground.keys():
+                    docid = "N{id}".format(id=docid)
                 curr_ground[docid] = rel_level
-            all_qr[curr_query] = curr_ground
             cnt += 1
+            all_qr[curr_query] = curr_ground
     return all_qr
 
 
@@ -137,9 +139,17 @@ def get_rel_real(trecrunFile, rel_ground):
                 rel_real.append((docid, 0))
             else:
                 rel_real.append((docid, rel_ground_qr[docid]))
-            all_qr[curr_query] = rel_real
             cnt += 1
+        all_qr[curr_query] = rel_real
     return all_qr
+
+
+# print(
+#     get_rel_real(
+#         "trainFiles/ms2-bm25.trecrun",
+#         get_rel_ground("trainFiles/msmarco.qrels"),
+#     )
+# )
 
 
 def get_ndcg20(rel_real, rel_ground):
@@ -150,6 +160,8 @@ def get_ndcg20(rel_real, rel_ground):
     for i in range(1, 20):
         dcg += rel_real[i][1] / math.log2(i + 1)
         idcg += rel_ideal[i][1] / math.log2(i + 1)
+    if idcg == 0:
+        return 0
     ndcg20 = dcg / idcg
     return ndcg20
 
@@ -162,11 +174,15 @@ def get_numRel(rel_ground_qr):
     return cnt
 
 
-def get_relFound(rel_real):
+def get_relFound(rel_real, qr):
     cnt = 0
+    res = []
     for pair in rel_real:
         if pair[1] > 0:
             cnt += 1
+            res.append(pair[0])
+    if qr == "118440":
+        print(res)
     return cnt
 
 
@@ -220,6 +236,8 @@ def get_ap(rel_real):
         if pair[1] > 0:
             cnt_inc += 1
             cum += cnt_inc / cnt_total
+    if cnt_inc == 0:
+        return 0
     return cum / cnt_inc
 
 
@@ -263,7 +281,7 @@ def eval(trecrunFile, qrelsFile, outputFile):
         cnt += 1
         ndcg20 = get_ndcg20(rankings, rel_ground[qr])
         numRel = get_numRel(rel_ground[qr])
-        relFound = get_relFound(rankings)
+        relFound = get_relFound(rankings, qr)
         rr = get_reciprocal_rank(relFound, rel_real=rankings)
         p10 = get_p10(rankings)
         r10 = get_r10(rankings, numRel)
@@ -295,26 +313,54 @@ def eval(trecrunFile, qrelsFile, outputFile):
         "P@10": cp10 / cnt,
         "R@10": cr10 / cnt,
         "F1@10": cf1_10 / cnt,
-        "MAP": cap / cnt,
+        "AP": cap / cnt,
     }
-    write_file("output_test1.txt", all_qr)
+    write_file(outputFile, all_qr)
     return all_qr
 
 
-# all_queries =
-eval(
-    "C:\\Users\\lemin\\P2python\\trainFiles\\msmarcosmall-bm25.trecrun",
-    "C:\\Users\\lemin\\P2python\\trainFiles\\msmarco.qrels",
-    "outputFile.txt",
-)
-# print(all_queries)
+# bm25 = eval(
+#     "C:\\Users\\lemin\\P2python\\P2eval\\msmarcofull-bm25.trecrun",
+#     "C:\\Users\\lemin\\P2python\\trainFiles\\msmarco.qrels",
+#     "C:\\Users\\lemin\\P2python\\msmarcofull-bm25.eval",
+# )
+# dpr = eval(
+#     "C:\\Users\\lemin\\P2python\\P2eval\\msmarcofull-dpr.trecrun",
+#     "C:\\Users\\lemin\\P2python\\trainFiles\\msmarco.qrels",
+#     "C:\\Users\\lemin\\P2python\\msmarcofull-dpr.eval",
+# )
+# ql = eval(
+#     "C:\\Users\\lemin\\P2python\\P2eval\\msmarcofull-ql.trecrun",
+#     "C:\\Users\\lemin\\P2python\\trainFiles\\msmarco.qrels",
+#     "C:\\Users\\lemin\\P2python\\msmarcofull-ql.eval",
+# )
 
+
+# def write_table(output_file, bm25, dpr, ql):
+#     with open(output_file, "w", encoding="utf8") as outfile:
+#         key1 = "AP"
+#         for qr in bm25.keys():
+#             outfile.write("{qr}\n".format(qr=qr))
+#         for qr in bm25.keys():
+#             outfile.write("{qr:6.4f}\n".format(qr=bm25[qr][key1]))
+#         for qr in dpr.keys():
+#             outfile.write("{qr:6.4f}\n".format(qr=dpr[qr][key1]))
+#         for qr in ql.keys():
+#             outfile.write("{qr:6.4f}\n".format(qr=ql[qr][key1]))
+
+
+# write_table("table.txt", bm25, dpr, ql)
 
 if __name__ == "__main__":
     argv_len = len(sys.argv)
-    runFile = sys.argv[1] if argv_len >= 2 else "msmarcosmall-bm25.trecrun"
-    qrelsFile = sys.argv[2] if argv_len >= 3 else "msmarco.qrels"
+    runFile = (
+        sys.argv[1]
+        if argv_len >= 2
+        else "/trainFiles/msmarcosmall-bm25.trecrun"
+    )
+    qrelsFile = sys.argv[2] if argv_len >= 3 else "../trainFiles/msmarco.qrels"
     outputFile = sys.argv[3] if argv_len >= 4 else "my-msmarcosmall-bm25.eval"
+    eval(runFile, qrelsFile, outputFile)
 
-    # eval(runFile, qrelsFile, outputFile)
-    # Feel free to change anything here ...
+
+# Feel free to change anything here ...

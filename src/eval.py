@@ -60,6 +60,37 @@ NDCG: DCG / IDCG
             all_qr[prev_qr] = curr_ground
     return all_qr"""
 
+"""
+def test(filename):
+    res = []
+    cnt = 0
+    with open(filename, "r", encoding="utf8") as f:
+        for line in f:
+            curr_line = line.split()
+            if cnt != 0 and int(curr_line[1]) > 0:
+                res.append(curr_line[0])
+            cnt += 1
+    return res
+"""
+
+
+"""
+def test_trec(filename, rel_items):
+    with open(
+        "C:\\Users\\lemin\\P2python\\{file}".format(file=filename),
+        "w",
+        encoding="utf8",
+    ) as outFile:
+        for qr, rank in rel_items.items():
+            outFile.write("{query} \n".format(query=qr))
+            for docid, rel in rank:
+                rel_w = str(rel)
+                outFile.write(
+                    "{docid} {rel_w} \n".format(docid=docid, rel_w=rel_w)
+                )
+
+"""
+
 
 def get_rel_ground(qrelsFile):
     all_qr = {}
@@ -111,18 +142,16 @@ def get_rel_real(trecrunFile, rel_ground):
     return all_qr
 
 
-"""
-def test(filename):
-    res = []
-    cnt = 0
-    with open(filename, "r", encoding="utf8") as f:
-        for line in f:
-            curr_line = line.split()
-            if cnt != 0 and int(curr_line[1]) > 0:
-                res.append(curr_line[0])
-            cnt += 1
-    return res
-"""
+def get_ndcg20(rel_real, rel_ground):
+    rel_ideal = sorted(rel_ground.items(), key=lambda x: x[1], reverse=True)
+    ndcg20 = 0
+    dcg = rel_real[0][1]
+    idcg = rel_ideal[0][1]
+    for i in range(1, 20):
+        dcg += rel_real[i][1] / math.log2(i + 1)
+        idcg += rel_ideal[i][1] / math.log2(i + 1)
+    ndcg20 = dcg / idcg
+    return ndcg20
 
 
 def get_numRel(rel_ground_qr):
@@ -141,54 +170,73 @@ def get_relFound(rel_real):
     return cnt
 
 
-"""
-def test_trec(filename, rel_items):
-    with open(
-        "C:\\Users\\lemin\\P2python\\{file}".format(file=filename),
-        "w",
-        encoding="utf8",
-    ) as outFile:
-        for qr, rank in rel_items.items():
-            outFile.write("{query} \n".format(query=qr))
-            for docid, rel in rank:
-                rel_w = str(rel)
-                outFile.write(
-                    "{docid} {rel_w} \n".format(docid=docid, rel_w=rel_w)
-                )
-
-"""
+def get_reciprocal_rank(rel_found, rel_real):
+    if rel_found == 0:
+        return 0
+    cnt = 1
+    res = 0
+    for pair in rel_real:
+        if pair[1] > 0:
+            res = 1 / cnt
+            break
+        cnt += 1
+    return res
 
 
-def get_ndcg20(rel_real, rel_ground):
-    # rel_ground = get_rel_ground(qrelsFile)
-    # rel_real = get_rel_real(trecrunFile, rel_ground)
-    # test_trec("relreal-test-smallbm25.txt", rel_real)
-    rel_ideal = sorted(rel_ground.items(), key=lambda x: x[1], reverse=True)
-    # test_trec("relideal-test-smallbm25.txt", rel_ideal)
-    # dcg_all = {}
-    # idcg_all = {}
-    ndcg20 = 0
-    dcg = rel_real[0][1]
-    idcg = rel_ideal[0][1]
-    for i in range(1, 20):
-        dcg += rel_real[i][1] / math.log2(i + 1)
-        idcg += rel_ideal[i][1] / math.log2(i + 1)
-    ndcg20 = dcg / idcg
-    return ndcg20
+def get_p10(rel_real):
+    cnt = 0
+    for i in range(10):
+        if rel_real[i][1] > 0:
+            cnt += 1
+    if cnt == 0:
+        return 0
+    return cnt / 10
 
 
-# ndcg20 = get_ndcg20(
-#     "C:\\Users\\lemin\\P2python\\trainFiles\\msmarcosmall-bm25.trecrun",
-#     "C:\\Users\\lemin\\P2python\\trainFiles\\msmarco.qrels",
-# )
-# print(ndcg20)
+def get_r10(rel_real, num_rel):
+    if num_rel == 0:
+        return 0
+    cnt = 0
+    for i in range(10):
+        if rel_real[i][1] > 0:
+            cnt += 1
+    if cnt == 0:
+        return 0
+    return cnt / num_rel
 
 
-# ndcg = dcg / idcg
-# need qrel to check relevance level, get all docid in trecrun, get their relevance level, sort
+def get_f1(r10, p10):
+    if r10 == 0 or p10 == 0:
+        return 0
+    return (2 * r10 * p10) / (r10 + p10)
 
 
-def write_file(output_file, res, query):
+def get_ap(rel_real):
+    cnt_inc = 0
+    cum = 0
+    cnt_total = 0
+    for pair in rel_real:
+        cnt_total += 1
+        if pair[1] > 0:
+            cnt_inc += 1
+            cum += cnt_inc / cnt_total
+    return cum / cnt_inc
+
+
+def write_file(output_file, all_queries):
+    with open(output_file, "w", encoding="utf8") as out_file:
+        for qr, res_eval in all_queries.items():
+            for key, val in res_eval.items():
+                if key in ("numRel", "relFound"):
+                    out_file.write(
+                        "{key} {qr} {val:d}\n".format(key=key, qr=qr, val=val)
+                    )
+                else:
+                    out_file.write(
+                        "{key} {qr} {val:6.4f}\n".format(
+                            key=key, qr=qr, val=val
+                        )
+                    )
     return 0
 
 
@@ -202,21 +250,64 @@ def eval(trecrunFile, qrelsFile, outputFile):
     rel_ground = get_rel_ground(qrelsFile)
     rel_real = get_rel_real(trecrunFile, rel_ground)
     all_qr = {}
+    cndcg20 = 0
+    cnumRel = 0
+    crelFound = 0
+    crr = 0
+    cp10 = 0
+    cr10 = 0
+    cf1_10 = 0
+    cap = 0
+    cnt = 0
     for qr, rankings in rel_real.items():
+        cnt += 1
         ndcg20 = get_ndcg20(rankings, rel_ground[qr])
         numRel = get_numRel(rel_ground[qr])
         relFound = get_relFound(rankings)
-
-        all_qr[qr] = {"ndcg20": ndcg20, "numRel": numRel, "relFound": relFound}
+        rr = get_reciprocal_rank(relFound, rel_real=rankings)
+        p10 = get_p10(rankings)
+        r10 = get_r10(rankings, numRel)
+        f1_10 = get_f1(r10, p10)
+        ap = get_ap(rankings)
+        all_qr[qr] = {
+            "NDCG@20": ndcg20,
+            "numRel": numRel,
+            "relFound": relFound,
+            "RR": rr,
+            "P@10": p10,
+            "R@10": r10,
+            "F1@10": f1_10,
+            "AP": ap,
+        }
+        cndcg20 += ndcg20
+        cnumRel += numRel
+        crelFound += relFound
+        crr += rr
+        cp10 += p10
+        cr10 += r10
+        cf1_10 += f1_10
+        cap += ap
+    all_qr["all"] = {
+        "NDCG@20": cndcg20 / cnt,
+        "numRel": round(cnumRel / cnt),
+        "relFound": round(crelFound / cnt),
+        "MRR": crr / cnt,
+        "P@10": cp10 / cnt,
+        "R@10": cr10 / cnt,
+        "F1@10": cf1_10 / cnt,
+        "MAP": cap / cnt,
+    }
+    write_file("output_test1.txt", all_qr)
     return all_qr
 
 
-all_queries = eval(
+# all_queries =
+eval(
     "C:\\Users\\lemin\\P2python\\trainFiles\\msmarcosmall-bm25.trecrun",
     "C:\\Users\\lemin\\P2python\\trainFiles\\msmarco.qrels",
     "outputFile.txt",
 )
-print(all_queries)
+# print(all_queries)
 
 
 if __name__ == "__main__":

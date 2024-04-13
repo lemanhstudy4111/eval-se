@@ -106,15 +106,14 @@ def get_rel_ground(qrelsFile):
             if cnt == 0:
                 curr_query = query
             if query != curr_query:
-                all_qr[query] = curr_ground
+                all_qr[curr_query] = curr_ground
                 curr_ground = {}
                 curr_query = query
-            else:
-                if docid in curr_ground.keys():
-                    docid = "N{id}".format(id=docid)
-                curr_ground[docid] = rel_level
+            if docid in curr_ground.keys():
+                docid = "N{id}".format(id=docid)
+            curr_ground[docid] = rel_level
             cnt += 1
-            all_qr[curr_query] = curr_ground
+        all_qr[curr_query] = curr_ground
     return all_qr
 
 
@@ -142,14 +141,6 @@ def get_rel_real(trecrunFile, rel_ground):
             cnt += 1
         all_qr[curr_query] = rel_real
     return all_qr
-
-
-# print(
-#     get_rel_real(
-#         "trainFiles/ms2-bm25.trecrun",
-#         get_rel_ground("trainFiles/msmarco.qrels"),
-#     )
-# )
 
 
 def get_ndcg20(rel_real, rel_ground):
@@ -181,8 +172,6 @@ def get_relFound(rel_real, qr):
         if pair[1] > 0:
             cnt += 1
             res.append(pair[0])
-    if qr == "118440":
-        print(res)
     return cnt
 
 
@@ -227,7 +216,7 @@ def get_f1(r10, p10):
     return (2 * r10 * p10) / (r10 + p10)
 
 
-def get_ap(rel_real):
+def get_ap(rel_real, numRel):
     cnt_inc = 0
     cum = 0
     cnt_total = 0
@@ -238,7 +227,7 @@ def get_ap(rel_real):
             cum += cnt_inc / cnt_total
     if cnt_inc == 0:
         return 0
-    return cum / cnt_inc
+    return cum / numRel
 
 
 def write_file(output_file, all_queries):
@@ -286,7 +275,7 @@ def eval(trecrunFile, qrelsFile, outputFile):
         p10 = get_p10(rankings)
         r10 = get_r10(rankings, numRel)
         f1_10 = get_f1(r10, p10)
-        ap = get_ap(rankings)
+        ap = get_ap(rankings, numRel)
         all_qr[qr] = {
             "NDCG@20": ndcg20,
             "numRel": numRel,
@@ -356,10 +345,14 @@ if __name__ == "__main__":
     runFile = (
         sys.argv[1]
         if argv_len >= 2
-        else "/trainFiles/msmarcosmall-bm25.trecrun"
+        else "C:\\Users\\lemin\\P2python\\trainFiles\\msmarcofull-bm25.trecrun"
     )
-    qrelsFile = sys.argv[2] if argv_len >= 3 else "../trainFiles/msmarco.qrels"
-    outputFile = sys.argv[3] if argv_len >= 4 else "my-msmarcosmall-bm25.eval"
+    qrelsFile = (
+        sys.argv[2]
+        if argv_len >= 3
+        else "C:/Users/lemin/P2python/trainFiles/msmarco.qrels"
+    )
+    outputFile = sys.argv[3] if argv_len >= 4 else "bm25.eval"
     eval(runFile, qrelsFile, outputFile)
 
 

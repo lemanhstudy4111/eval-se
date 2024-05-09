@@ -1,5 +1,5 @@
 # Evaluation System for Search Engines
-- The system evaluates document retrieval methods such as Query Likelihood, BM25, and DPR.
+- The system evaluates and compare document retrieval methods such as Query Likelihood, BM25, and DPR using Normalized Discounted Cummulative Gain, F-measure, Average Precision, etc.
 # Analysis Question
 
 1. Table
